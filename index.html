@@ -1,0 +1,179 @@
+<style>
+  html {
+    min-width: 900px;
+  }
+  body {
+    width: 820px;
+    margin: 1em auto 4em auto;
+    position: relative;
+  }
+  p {
+    max-width: 640px;
+  }
+  aside {
+    position: absolute;
+    right: 0;
+    max-width: 180px;
+    font-size: small;
+  }
+  rect, line, polygon {
+    fill: none;
+    stroke: blue;
+    stroke-width: 2;
+  }
+
+</style>
+<script src="d3.v4.min.js"></script>
+<script>
+var regularPolygonPoints = ({numSides, radius}) =>
+  d3.range(0, 2 * Math.PI, 2 * Math.PI / numSides)
+    .map(angle => `${radius * Math.cos(angle)},${radius * Math.sin(angle)}`)
+    .join(' ');
+
+var regularPolygonSpurs = ({numSides, radius, spurLength}) => {
+  var angleOffset = (numSides - 2) *  Math.PI / (2 * numSides);
+
+  return d3.range(0, 2 * Math.PI, 2 * Math.PI / numSides)
+    .map(angle => ([
+      [radius * Math.cos(angle), radius * Math.sin(angle)],
+      [
+        radius * Math.cos(angle) + spurLength * Math.cos(angle + angleOffset),
+        radius * Math.sin(angle) + spurLength * Math.sin(angle + angleOffset),
+      ]
+    ]));
+  }
+
+function spurryPolygon(selection) {
+  var selEnter = selection.enter();
+  selEnter.append('polygon')
+  selEnter.append('g').attr('class', 'spurs');
+  selection = selection.merge(selEnter);
+
+  selection.select('polygon')
+    .attr('points', regularPolygonPoints);
+
+  var spur = selection.select('.spurs')
+    .selectAll('.spur')
+    .data(regularPolygonSpurs);
+
+  spur.exit().remove();
+  spur.merge(
+    spur.enter().append('line').attr('class', 'spur')
+  )
+    .attr('x1', d => d[0][0])
+    .attr('y1', d => d[0][1])
+    .attr('x2', d => d[1][0])
+    .attr('y2', d => d[1][1]);
+}
+function angleMeasures(selection) {
+  var selEnter = selection.enter();
+  selEnter.append('g').attr('class', 'angle-measures');
+  selection = selection.merge(selEnter);
+
+  selection
+}
+</script>
+<h1>Angle of any Regular Polygon</h1>
+
+<main>
+<section>
+  You probably know that each interior angle of a square is 90&deg;, and that the angles in a regular<sup>*</sup> triangle are 60&deg;. Each angle of a regular hexagon is 120&deg;.
+</section>
+<aside style="margin-top: -4em">
+  * In a <em>regular</em> polygon, every side is the same length, and every corner has the same angle.
+</aside>
+<section id="triangle-square-hexagon">
+  <svg width="680" height="202">
+    <g transform="translate(10, 0) scale(0.8, 0.8)">
+      <rect x="10" y="30" width="200" height="200" vector-effect="non-scaling-stroke"/>
+      <polygon transform="translate(150, 255) scale(2.59, -2.59)" points="50 10 150 10 100 86.6" vector-effect="non-scaling-stroke"></polygon>
+      <polygon transform="translate(600, 15) scale(0.78, 0.78)" points="300,150 225,280 75,280 0,150 75,20 225,20" vector-effect="non-scaling-stroke"></polygon>
+    </g>
+  </svg>
+</section>
+<section>
+  If you're good at memorizing, and someone has told you, you might be able to rattle off that "The angles in an <em>n</em>-sided polygon are 180 - (360 / <em>n</em>)." Remembering rules like that is hard. And it's unsatisfying. <em>Why</em> is it 180 - (360 / <em>n</em>), and not some other formula?
+</section>
+<section>
+  There's a better way. We'll come at it sideways. Instead of trying to find the inside angle, think about the outside angle (like in the little wedges below).
+</section>
+<section id="hexagon-with-wedges">
+  <script>
+  (function() {
+    var spurLength = 60, numSides = 6, radius = 50;
+    var svg = d3.select('#hexagon-with-wedges').append('svg')
+      .attr('width', 400)
+      .attr('height', 200)
+      .append('g')
+      .attr('transform', 'translate(200, 100)');
+    svg.selectAll('.spurry-polygon')
+      .data([{
+        numSides: numSides,
+        radius: radius,
+        spurLength: spurLength,
+      }])
+    .call(spurryPolygon);
+  })()
+  </script>
+</section>
+<section id="polygon-editor">
+  <style>
+  #polygon-editor label {
+    display: inline-block;
+    width: 130px;
+  }
+  </style>
+  <script>
+  (function() {
+
+    var spurLength = 60, numSides = 6, radius = 50;
+    var svg = d3.select('#polygon-editor').append('svg')
+      .attr('width', 680)
+      .attr('height', 320)
+      .append('g')
+      .attr('transform', 'translate(320, 150)');
+
+    var sideControls = d3.select('#polygon-editor')
+      .append('div')
+      .attr('data-sides', '');
+
+    sideControls
+      .append('label');
+    sideControls
+      .append('input')
+      .attr('type', 'range')
+      .attr('min', '3')
+      .attr('max', '25')
+      .attr('value', '6')
+      .on('input', function() { numSides = this.value; render() });
+
+    var radiusControls = d3.select('#polygon-editor')
+      .append('div')
+      .attr('data-radius', '');
+    radiusControls
+      .append('label')
+    radiusControls
+      .append('input')
+      .attr('type', 'range')
+      .attr('min', '0')
+      .attr('max', '80')
+      .attr('value', '50')
+      .on('input', function() { radius = this.value; render() });
+
+    function render() {
+      svg.selectAll('.spurry-polygon')
+        .data([{
+          numSides: numSides,
+          radius: radius,
+          spurLength: spurLength,
+        }])
+      .call(spurryPolygon);
+
+      radiusControls.select('label').text(`Radius: ${radius}`);
+      sideControls.select('label').text(`Number Sides: ${numSides}`);
+    }
+    render();
+
+  })()
+  </script>
+</section>
